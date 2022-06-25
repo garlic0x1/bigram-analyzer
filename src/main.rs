@@ -5,6 +5,12 @@ use utf8_chars::BufReadCharsExt;
 static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890";
 static BREAK: &str = "\t\n !@#$%^&*()+=[]{}\\|;:'\"/?><,.`~";
 
+/*
+struct BigramAnalyzer {
+    matrix: HashMap<char, HashMap<char, u32>>,
+}
+*/
+
 fn main() {
     let mut matrix: HashMap<char, HashMap<char, u32>> = HashMap::new();
     for i in SET.chars() {
@@ -34,10 +40,17 @@ fn main() {
         }
         println!("{}", c);
     }
+    
+    print!("  ");
+    for (k, v) in matrix.iter() {
+        print!(" {}", k);
+    }
+    println!("");
     for (k, v) in matrix.iter() {
         print!("{}: ", k);
         for (k, v) in v.iter() {
-            print!("{}={} ", k, v);
+            print!("{} ", v);
         }
+    println!("{:#?}", matrix);
     }
 }
