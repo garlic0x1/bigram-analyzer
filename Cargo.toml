@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 utf8-chars = "*"
+prettytable-rs = "^0.8"

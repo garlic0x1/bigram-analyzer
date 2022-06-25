@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::io::stdin;
+#[macro_use] extern crate prettytable;
+use prettytable::*;
 use utf8_chars::BufReadCharsExt;
 
-static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890";
+static SET: &str = "abcdefghijklmnopqrstuvwxyz";
 static BREAK: &str = "\t\n !@#$%^&*()+=[]{}\\|;:'\"/?><,.`~";
 
 /*
@@ -28,7 +30,6 @@ fn main() {
         }
         if SET.contains(c) {
             if let Some(l) = last {
-                println!("accessing: {}, {}", l, c);
                 let cell = matrix
                     .get_mut(&l)
                     .expect("no row")
@@ -38,19 +39,23 @@ fn main() {
             }
             last = Some(c);
         }
-        println!("{}", c);
     }
     
-    print!("  ");
-    for (k, v) in matrix.iter() {
-        print!(" {}", k);
+    let mut table = Table::new();;
+    let mut start_row = Row::new(Vec::new());
+    start_row.add_cell(Cell::new("MATRIX"));
+    for c in SET.chars() {
+        start_row.add_cell(Cell::new(c.to_string().as_str()));
     }
-    println!("");
-    for (k, v) in matrix.iter() {
-        print!("{}: ", k);
-        for (k, v) in v.iter() {
-            print!("{} ", v);
-        }
-    println!("{:#?}", matrix);
+    table.add_row(start_row);
+    for c in SET.chars() {
+        let mut row = Row::new(Vec::new());
+        row.add_cell(Cell::new(c.to_string().as_str()));
+    for inner in SET.chars() {
+        let value = matrix.get(&c).unwrap().get(&inner).unwrap();
+        row.add_cell(Cell::new(&value.to_string()));
     }
+    table.add_row(row);
+    }
+    table.printstd();
 }
