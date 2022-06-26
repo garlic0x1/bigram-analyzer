@@ -25,7 +25,7 @@ impl BigramAnalyzer {
         }
     }
 
-    fn test_word(&self, word: &str, min_score: u32, max_occurrences: u32) -> bool {
+    fn is_word_cleartext(&self, word: &str, min_score: u32, max_occurrences: u32) -> bool {
         let mut occurrences: u32 = 0;
         let mut last: Option<char> = None;
         for c in word.chars() {
@@ -43,7 +43,7 @@ impl BigramAnalyzer {
                 last = Some(c);
             }
         }
-        occurrences > max_occurrences
+        occurrences < max_occurrences
     }
 
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
@@ -111,14 +111,14 @@ fn main() {
     let charvec = SET.chars().collect::<Vec<_>>();
     let mut analyzer = BigramAnalyzer::new(
         charvec,
-        "https://wiki.archlinux.org/title/PipeWire".to_string(),
+        "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt".to_string(),
     );
     analyzer.analyze_corpus();
     analyzer.print();
     let real_word = "animal";
     let fake_word = "aliuesraljnfa";
-    let is_hash = analyzer.test_word(fake_word, 10, 1);
-    println!("{} is hash? {}", fake_word, is_hash);
-    let is_hash = analyzer.test_word(real_word, 10, 1);
-    println!("{} is hash? {}", real_word, is_hash);
+    let is_hash = analyzer.is_word_cleartext(fake_word, 30, 1);
+    println!("{} is cleartext? {}", fake_word, is_hash);
+    let is_hash = analyzer.is_word_cleartext(real_word, 30, 1);
+    println!("{} is cleartext? {}", real_word, is_hash);
 }
