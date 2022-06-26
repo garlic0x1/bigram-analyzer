@@ -25,6 +25,23 @@ impl BigramAnalyzer {
         }
     }
 
+    fn test_word(&self, word: &str) {
+        let mut last: Option<char> = None;
+        for c in word.chars() {
+            if !self.charset.contains(&c) {
+                last = None;
+                continue;
+            }
+            if self.charset.contains(&c) {
+                if let Some(l) = last {
+                    let score = self.matrix.get(&l).unwrap().get(&c).unwrap();
+                    println!("{}", score);
+                }
+                last = Some(c);
+            }
+        }
+    }
+
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
         println!("downloading corpus from: {}", self.corpus_url);
         let mut res = reqwest::blocking::get(self.corpus_url.clone())?;
@@ -94,4 +111,5 @@ fn main() {
     );
     analyzer.analyze_corpus();
     analyzer.print();
+    analyzer.test_word("qwerty");
 }
