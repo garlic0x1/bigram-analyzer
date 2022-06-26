@@ -5,7 +5,7 @@ use reqwest;
 use std::collections::HashMap;
 use std::{io, io::prelude::*};
 
-static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890-+_";
+static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890";
 
 struct BigramAnalyzer {
     matrix: HashMap<char, HashMap<char, u32>>,
