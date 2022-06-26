@@ -1,10 +1,14 @@
 use prettytable::*;
 use reqwest;
 use std::collections::HashMap;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::fs::File;
 
 pub struct BigramAnalyzer {
     matrix: HashMap<char, HashMap<char, u32>>,
     corpus_filename: String,
+    corpus_size: u32,
     charset: Vec<char>,
 }
 
@@ -12,16 +16,25 @@ impl BigramAnalyzer {
     pub fn new(charset: Vec<char>, corpus_filename: String) -> Self {
         Self {
             charset,
+            corpus_size: 0,
             corpus_filename,
             matrix: HashMap::new(),
         }
     }
 
-    pub fn is_word_cleartext(&self, word: &str, min_score: u32, max_occurrences: u32) -> bool {
+    pub fn is_word_cleartext(&self, word: &str, min_score: Option<u32>, max_occurrences: u32) -> bool {
+        let min: u32;
+        match min_score {
+            Some(m) => min = m,
+            None => {
+                min = self.corpus_size / 8_000;
+            println!("size threshold set to {} occurrences", min);},
+        }
         let mut occurrences: u32 = 0;
         let mut last: Option<char> = None;
         for c in word.chars() {
             let mut c = c;
+            // standardize case
             let ascii = c as u8;
             if ascii > 64 && ascii < 91 {
                 c = (ascii + 32) as char;
@@ -33,7 +46,7 @@ impl BigramAnalyzer {
             if self.charset.contains(&c) {
                 if let Some(l) = last {
                     let score = self.matrix.get(&l).unwrap().get(&c).unwrap();
-                    if score < &min_score {
+                    if score < &min {
                         occurrences += 1;
                     }
                 }
@@ -62,7 +75,17 @@ impl BigramAnalyzer {
             }
             self.matrix.insert(*i, inner);
         }
-        let mut last: Option<char> = None;
+
+        /*
+        let f = File::open(self.corpus_filename).expect("failed to open file");
+
+        let mut reader = BufReader::new(f);
+
+    let mut line = String::new();
+    let len = reader.read_(&mut line)?;
+        */
+
+
         let corpus: String;
         if self.corpus_filename.clone().starts_with("http://")
             || self.corpus_filename.starts_with("https://")
@@ -73,17 +96,22 @@ impl BigramAnalyzer {
                 .read_local()
                 .expect(&format!("no such file or URL {}", self.corpus_filename));
         }
-        for c in corpus.chars() {
-            let mut c = c;
+
+        let mut last: Option<char> = None;
+        let mut counter: u32 = 0;
+        for ch in corpus.chars() {
+            // standardize case
+            let mut c = ch;
             let ascii = c as u8;
             if ascii > 64 && ascii < 91 {
                 c = (ascii + 32) as char;
+            } else {
+                c = ch;
             }
+
             if !self.charset.contains(&c) {
                 last = None;
-                continue;
-            }
-            if self.charset.contains(&c) {
+            } else {
                 if let Some(l) = last {
                     let cell = self
                         .matrix
@@ -92,13 +120,15 @@ impl BigramAnalyzer {
                         .get_mut(&c)
                         .expect("no cell");
                     *cell += 1;
+                    counter += 1;
                 }
                 last = Some(c);
             }
         }
+        self.corpus_size = counter;
     }
 
-    pub fn print(&self) {
+    pub fn print_matrix(&self) {
         let mut table = Table::new();
         let mut start_row = Row::new(Vec::new());
         start_row.add_cell(Cell::new("MATRIX"));

@@ -5,6 +5,7 @@ use crate::bigram::BigramAnalyzer;
 
 pub mod bigram;
 
+// analyzer is case insensitive
 static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890";
 
 
@@ -24,8 +25,8 @@ enum Commands {
     /// print cleartext words from stdin{n}
     Clear {
         /// minimum occurence score for "common bigraph"
-        #[clap(short, long, default_value = "10")]
-        score_min: u32,
+        #[clap(short, long)]
+        score_min: Option<u32>,
         /// n rare bigraphs to be encoded
         #[clap(short, long, default_value = "1")]
         occurrences_max: u32,
@@ -36,8 +37,8 @@ enum Commands {
     /// print hashed/encoded words from stdin{n}
     Hash {
         /// minimum occurence score for "common bigraph"
-        #[clap(short, long, default_value = "10")]
-        score_min: u32,
+        #[clap(short, long)]
+        score_min: Option<u32>,
         /// n rare bigraphs to be encoded
         #[clap(short, long, default_value = "1")]
         occurrences_max: u32,
@@ -58,7 +59,7 @@ fn main() {
 
     match &args.command {
         Commands::Matrix => {
-            analyzer.print();
+            analyzer.print_matrix();
         }
         Commands::Clear { score_min, occurrences_max, unique } => {
             for word in io::stdin().lock().lines() {
