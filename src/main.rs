@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::collections::HashSet;
 use prettytable::*;
 use reqwest;
 use std::collections::HashMap;
@@ -50,7 +51,7 @@ impl BigramAnalyzer {
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
         let mut res = reqwest::blocking::get(self.corpus_filename.clone())?;
         let mut body = String::new();
-        res.read_to_string(&mut body);
+        res.read_to_string(&mut body).expect("Failed to read downloaded corpus");
         Ok(body)
     }
 
@@ -68,7 +69,7 @@ impl BigramAnalyzer {
             self.matrix.insert(*i, inner);
         }
         let mut last: Option<char> = None;
-        let mut corpus = String::new();
+        let corpus: String;
         if self.corpus_filename.clone().starts_with("http://")
             || self.corpus_filename.starts_with("https://")
         {
@@ -137,7 +138,7 @@ struct Arguments {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// print cleartext words{n}
+    /// print cleartext words from stdin{n}
     Clear {
         /// minimum occurence score for "common bigraph"
         #[clap(short, long, default_value = "10")]
@@ -149,7 +150,7 @@ enum Commands {
         #[clap(short, long)]
         unique: bool,
     },
-    /// print hashed/encoded words{n}
+    /// print hashed/encoded words from stdin{n}
     Hash {
         /// minimum occurence score for "common bigraph"
         #[clap(short, long, default_value = "10")]
@@ -161,10 +162,12 @@ enum Commands {
         #[clap(short, long)]
         unique: bool,
     },
+    /// print occurrence matrix{n}
     Matrix,
 }
 
 fn main() {
+    let mut unique_filter: HashSet<String> = HashSet::new();
     let args = Arguments::parse();
     let charvec = SET.chars().collect::<Vec<_>>();
     let mut analyzer = BigramAnalyzer::new(charvec, args.corpus);
@@ -178,8 +181,9 @@ fn main() {
             for word in io::stdin().lock().lines() {
                 if let Ok(word) = word {
                     let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
-                    if is_clear {
+                    if is_clear && (!unique_filter.contains(&word) || !unique) {
                         println!("{}", word);
+                        unique_filter.insert(word);
                     }
                 }
             }
@@ -188,8 +192,9 @@ fn main() {
             for word in io::stdin().lock().lines() {
                 if let Ok(word) = word {
                     let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
-                    if !is_clear {
+                    if !is_clear && (!unique_filter.contains(&word) || !unique) {
                         println!("{}", word);
+                        unique_filter.insert(word);
                     }
                 }
             }
