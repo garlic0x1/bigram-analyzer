@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use reqwest;
+use std::collections::HashMap;
 use std::io::stdin;
 #[macro_use]
 extern crate prettytable;
@@ -7,8 +7,7 @@ use prettytable::*;
 use std::io::Read;
 use utf8_chars::BufReadCharsExt;
 
-static SET: &str = "abcdefghijklmnopqrstuvwxyz";
-static BREAK: &str = "\t\n !@#$%^&*()+=[]{}\\|;:'\"/?><,.`~";
+static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890-+_";
 
 struct BigramAnalyzer {
     matrix: HashMap<char, HashMap<char, u32>>,
@@ -29,6 +28,11 @@ impl BigramAnalyzer {
         let mut occurrences: u32 = 0;
         let mut last: Option<char> = None;
         for c in word.chars() {
+            let mut c = c;
+            let ascii = c as u8;
+            if ascii > 64 && ascii < 91 {
+               c = (ascii + 32) as char; 
+            }
             if !self.charset.contains(&c) {
                 last = None;
                 continue;
@@ -50,10 +54,9 @@ impl BigramAnalyzer {
         println!("downloading corpus from: {}", self.corpus_url);
         let mut res = reqwest::blocking::get(self.corpus_url.clone())?;
         println!("download successful!");
-            let mut body = String::new();
-            res.read_to_string(&mut body);
-            println!("corpus: {}", body);
-            Ok(body)
+        let mut body = String::new();
+        res.read_to_string(&mut body);
+        Ok(body)
     }
 
     fn analyze_corpus(&mut self) {
@@ -67,6 +70,11 @@ impl BigramAnalyzer {
         let mut last: Option<char> = None;
         let corpus = self.download_corpus().unwrap();
         for c in corpus.chars() {
+            let mut c = c;
+            let ascii = c as u8;
+            if ascii > 64 && ascii < 91 {
+               c = (ascii + 32) as char; 
+            }
             if !self.charset.contains(&c) {
                 last = None;
                 continue;
@@ -111,14 +119,17 @@ fn main() {
     let charvec = SET.chars().collect::<Vec<_>>();
     let mut analyzer = BigramAnalyzer::new(
         charvec,
-        "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt".to_string(),
+        "https://github.com/garlic0x1".to_string(),
     );
     analyzer.analyze_corpus();
     analyzer.print();
-    let real_word = "animal";
-    let fake_word = "aliuesraljnfa";
-    let is_hash = analyzer.is_word_cleartext(fake_word, 30, 1);
-    println!("{} is cleartext? {}", fake_word, is_hash);
-    let is_hash = analyzer.is_word_cleartext(real_word, 30, 1);
-    println!("{} is cleartext? {}", real_word, is_hash);
+    let test_list = vec!["animal", "bvfks", "snowball", "bptpvojlk", "realword"];
+    for word in test_list {
+        let is_clear = analyzer.is_word_cleartext(word, 30, 1);
+        if is_clear {
+            println!("{} is cleartext", word);
+        } else {
+            println!("{} is encoded", word);
+        }
+    }
 }
