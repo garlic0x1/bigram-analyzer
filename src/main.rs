@@ -25,7 +25,8 @@ impl BigramAnalyzer {
         }
     }
 
-    fn test_word(&self, word: &str) {
+    fn test_word(&self, word: &str, min_score: u32, max_occurrences: u32) -> bool {
+        let mut occurrences: u32 = 0;
         let mut last: Option<char> = None;
         for c in word.chars() {
             if !self.charset.contains(&c) {
@@ -35,11 +36,14 @@ impl BigramAnalyzer {
             if self.charset.contains(&c) {
                 if let Some(l) = last {
                     let score = self.matrix.get(&l).unwrap().get(&c).unwrap();
-                    println!("{}", score);
+                    if score < &min_score {
+                        occurrences += 1;
+                    }
                 }
                 last = Some(c);
             }
         }
+        occurrences > max_occurrences
     }
 
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
@@ -111,5 +115,10 @@ fn main() {
     );
     analyzer.analyze_corpus();
     analyzer.print();
-    analyzer.test_word("qwerty");
+    let real_word = "animal";
+    let fake_word = "aliuesraljnfa";
+    let is_hash = analyzer.test_word(fake_word, 10, 1);
+    println!("{} is hash? {}", fake_word, is_hash);
+    let is_hash = analyzer.test_word(real_word, 10, 1);
+    println!("{} is hash? {}", real_word, is_hash);
 }
