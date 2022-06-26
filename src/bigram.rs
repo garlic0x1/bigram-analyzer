@@ -27,8 +27,9 @@ impl BigramAnalyzer {
         match min_score {
             Some(m) => min = m,
             None => {
-                min = self.corpus_size / 8_000;
-            println!("size threshold set to {} occurrences", min);},
+                min = self.corpus_size / 10_000;
+            }
+            //println!("size threshold set to {} occurrences", min);},
         }
         let mut occurrences: u32 = 0;
         let mut last: Option<char> = None;

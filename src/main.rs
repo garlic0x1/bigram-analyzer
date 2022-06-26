@@ -24,10 +24,10 @@ struct Arguments {
 enum Commands {
     /// print cleartext words from stdin{n}
     Clear {
-        /// minimum occurence score for "common bigraph"
+        /// minimum occurence score for "common bigram"
         #[clap(short, long)]
         score_min: Option<u32>,
-        /// n rare bigraphs to be encoded
+        /// n rare bigrams to be encoded
         #[clap(short, long, default_value = "1")]
         occurrences_max: u32,
         /// only print unique results
@@ -36,10 +36,10 @@ enum Commands {
     },
     /// print hashed/encoded words from stdin{n}
     Hash {
-        /// minimum occurence score for "common bigraph"
+        /// minimum occurence score for "common bigram"
         #[clap(short, long)]
         score_min: Option<u32>,
-        /// n rare bigraphs to be encoded
+        /// n rare bigrams to be encoded
         #[clap(short, long, default_value = "1")]
         occurrences_max: u32,
         /// only print unique results
