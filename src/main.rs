@@ -1,25 +1,22 @@
+use clap::{Parser, Subcommand};
+use prettytable::*;
 use reqwest;
 use std::collections::HashMap;
-use std::io::stdin;
-#[macro_use]
-extern crate prettytable;
-use prettytable::*;
-use std::io::Read;
-use utf8_chars::BufReadCharsExt;
+use std::{io, io::prelude::*};
 
 static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890-+_";
 
 struct BigramAnalyzer {
     matrix: HashMap<char, HashMap<char, u32>>,
-    corpus_url: String,
+    corpus_filename: String,
     charset: Vec<char>,
 }
 
 impl BigramAnalyzer {
-    fn new(charset: Vec<char>, corpus_url: String) -> Self {
+    fn new(charset: Vec<char>, corpus_filename: String) -> Self {
         Self {
             charset,
-            corpus_url,
+            corpus_filename,
             matrix: HashMap::new(),
         }
     }
@@ -31,7 +28,7 @@ impl BigramAnalyzer {
             let mut c = c;
             let ascii = c as u8;
             if ascii > 64 && ascii < 91 {
-               c = (ascii + 32) as char; 
+                c = (ascii + 32) as char;
             }
             if !self.charset.contains(&c) {
                 last = None;
@@ -51,12 +48,15 @@ impl BigramAnalyzer {
     }
 
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
-        println!("downloading corpus from: {}", self.corpus_url);
-        let mut res = reqwest::blocking::get(self.corpus_url.clone())?;
-        println!("download successful!");
+        let mut res = reqwest::blocking::get(self.corpus_filename.clone())?;
         let mut body = String::new();
         res.read_to_string(&mut body);
         Ok(body)
+    }
+
+    fn read_local(&self) -> Result<String, std::io::Error> {
+        let s = std::fs::read_to_string(self.corpus_filename.clone())?;
+        Ok(s)
     }
 
     fn analyze_corpus(&mut self) {
@@ -68,12 +68,21 @@ impl BigramAnalyzer {
             self.matrix.insert(*i, inner);
         }
         let mut last: Option<char> = None;
-        let corpus = self.download_corpus().unwrap();
+        let mut corpus = String::new();
+        if self.corpus_filename.clone().starts_with("http://")
+            || self.corpus_filename.starts_with("https://")
+        {
+            corpus = self.download_corpus().expect("Failed to download corpus");
+        } else {
+            corpus = self
+                .read_local()
+                .expect(&format!("no such file or URL {}", self.corpus_filename));
+        }
         for c in corpus.chars() {
             let mut c = c;
             let ascii = c as u8;
             if ascii > 64 && ascii < 91 {
-               c = (ascii + 32) as char; 
+                c = (ascii + 32) as char;
             }
             if !self.charset.contains(&c) {
                 last = None;
@@ -115,21 +124,75 @@ impl BigramAnalyzer {
     }
 }
 
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
+struct Arguments {
+    #[clap(subcommand)]
+    command: Commands,
+    /// local file or URL to generate matrix with
+    #[clap(value_parser)]
+    corpus: String,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// print cleartext words{n}
+    Clear {
+        /// minimum occurence score for "common bigraph"
+        #[clap(short, long, default_value = "10")]
+        score_min: u32,
+        /// n rare bigraphs to be encoded
+        #[clap(short, long, default_value = "1")]
+        occurrences_max: u32,
+        /// only print unique results
+        #[clap(short, long)]
+        unique: bool,
+    },
+    /// print hashed/encoded words{n}
+    Hash {
+        /// minimum occurence score for "common bigraph"
+        #[clap(short, long, default_value = "10")]
+        score_min: u32,
+        /// n rare bigraphs to be encoded
+        #[clap(short, long, default_value = "1")]
+        occurrences_max: u32,
+        /// only print unique results
+        #[clap(short, long)]
+        unique: bool,
+    },
+    Matrix,
+}
+
 fn main() {
+    let args = Arguments::parse();
     let charvec = SET.chars().collect::<Vec<_>>();
-    let mut analyzer = BigramAnalyzer::new(
-        charvec,
-        "https://github.com/garlic0x1".to_string(),
-    );
+    let mut analyzer = BigramAnalyzer::new(charvec, args.corpus);
     analyzer.analyze_corpus();
-    analyzer.print();
-    let test_list = vec!["animal", "bvfks", "snowball", "bptpvojlk", "realword"];
-    for word in test_list {
-        let is_clear = analyzer.is_word_cleartext(word, 30, 1);
-        if is_clear {
-            println!("{} is cleartext", word);
-        } else {
-            println!("{} is encoded", word);
+
+    match &args.command {
+        Commands::Matrix => {
+            analyzer.print();
+        }
+        Commands::Clear { score_min, occurrences_max, unique } => {
+            for word in io::stdin().lock().lines() {
+                if let Ok(word) = word {
+                    let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
+                    if is_clear {
+                        println!("{}", word);
+                    }
+                }
+            }
+        }
+        Commands::Hash { score_min, occurrences_max, unique } => {
+            for word in io::stdin().lock().lines() {
+                if let Ok(word) = word {
+                    let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
+                    if !is_clear {
+                        println!("{}", word);
+                    }
+                }
+            }
         }
     }
 }
