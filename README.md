@@ -5,40 +5,26 @@ First you must have a corpus to generate a matrix of bigram occurrence scores fr
 # help  
 ```
 $ bigram-analyzer help
+
 bigram-analyzer 0.1.0
 
 USAGE:
-    bigram-analyzer <CORPUS> <SUBCOMMAND>
+    bigram-analyzer [OPTIONS] <CORPUS> <SUBCOMMAND>
 
 ARGS:
     <CORPUS>    local file or URL to generate matrix with
 
 OPTIONS:
     -h, --help       Print help information
+    -m, --matrix     load from matrix file (much faster than corpus)
     -V, --version    Print version information
 
 SUBCOMMANDS:
-    clear     print cleartext words from stdin
-    hash      print hashed/encoded words from stdin
-    help      Print this message or the help of the given subcommand(s)
-    matrix    print occurrence matrix
-```
+    clear          print cleartext words from stdin
+    hash           print hashed/encoded words from stdin
+    help           Print this message or the help of the given subcommand(s)
+    matrix         generate matrix file to use later without having to reread corpus (it goes to
+                       stdout, pipe it to a file)
+    probability    print the probability of a word's existence
 
-options for clear and hash subcommands:  
-```
-OPTIONS:
-    -h, --help
-            Print help information
-
-    -o, --occurrences-max <OCCURRENCES_MAX>
-            n rare bigraphs to be encoded [default: 1]
-
-    -s, --score-min <SCORE_MIN>
-            minimum occurence score for "common bigraph" [default: 10]
-
-    -u, --unique
-            only print unique results
-
-    -V, --version
-            Print version information
 ```

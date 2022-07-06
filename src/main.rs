@@ -24,11 +24,11 @@ struct Arguments {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// print the probability of a string's existence
+    /// print the probability of a word's existence
     Probability,
     /// print cleartext words from stdin{n}
     Clear {
-        /// minimum occurence score for "common bigram"
+        /// minimum probability (around 0.001 - 0.0005 seems to work well)
         #[clap(short, long)]
         score_min: Option<f32>,
         /// only print unique results
@@ -37,14 +37,15 @@ enum Commands {
     },
     /// print hashed/encoded words from stdin{n}
     Hash {
-        /// minimum occurence score for "common bigram"
+        /// minimum probability (around 0.001 - 0.0005 seems to work well)
         #[clap(short, long)]
         score_min: Option<f32>,
         /// only print unique results
         #[clap(short, long)]
         unique: bool,
     },
-    /// print occurrence matrix{n}
+    /// generate matrix file to use later without having to reread corpus 
+    /// (it goes to stdout, pipe it to a file)
     Matrix {
         /// show pretty table (cannot be reused as matrix file)
         #[clap(short, long)]
