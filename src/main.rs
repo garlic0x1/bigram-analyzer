@@ -56,7 +56,7 @@ fn main() {
     let mut unique_filter: HashSet<String> = HashSet::new();
     let args = Arguments::parse();
     let charvec = SET.chars().collect::<Vec<_>>();
-    let mut analyzer = BigramAnalyzer::new(charvec, args.corpus);
+    let mut analyzer = BigramAnalyzer::from_corpus(charvec, args.corpus);
     analyzer.analyze_corpus();
 
     match &args.command {

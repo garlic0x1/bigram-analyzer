@@ -7,17 +7,29 @@ use std::fs::File;
 
 pub struct BigramAnalyzer {
     matrix: HashMap<char, HashMap<char, u32>>,
-    corpus_filename: String,
+    corpus_filename: Option<String>,
+    matrix_filename: Option<String>,
     corpus_size: u32,
     charset: Vec<char>,
 }
 
 impl BigramAnalyzer {
-    pub fn new(charset: Vec<char>, corpus_filename: String) -> Self {
+    pub fn from_corpus(charset: Vec<char>, corpus_filename: String) -> Self {
         Self {
             charset,
             corpus_size: 0,
-            corpus_filename,
+            corpus_filename: Some(corpus_filename),
+            matrix_filename: None,
+            matrix: HashMap::new(),
+        }
+    }
+
+    pub fn from_matrix(charset: Vec<char>, matrix_filename: String) -> Self {
+        Self {
+            charset,
+            corpus_size: 0,
+            corpus_filename: None,
+            matrix_filename: Some(matrix_filename),
             matrix: HashMap::new(),
         }
     }
@@ -58,14 +70,20 @@ impl BigramAnalyzer {
     }
 
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
-        let res = reqwest::blocking::get(self.corpus_filename.clone())?;
+        let res = reqwest::blocking::get(self.corpus_filename.clone().unwrap())?;
         let body = res.text().expect("Failed to read downloaded corpus");
         Ok(body)
     }
 
     fn read_local(&self) -> Result<String, std::io::Error> {
-        let s = std::fs::read_to_string(self.corpus_filename.clone())?;
+        let s = std::fs::read_to_string(self.corpus_filename.clone().unwrap())?;
         Ok(s)
+    }
+
+    pub fn load_matrix(&mut self) {
+    }
+
+    pub fn store_matrix(&self) {
     }
 
     pub fn analyze_corpus(&mut self) {
@@ -78,14 +96,16 @@ impl BigramAnalyzer {
         }
 
         let corpus: String;
-        if self.corpus_filename.clone().starts_with("http://")
-            || self.corpus_filename.starts_with("https://")
+
+        let filename = self.corpus_filename.clone().unwrap();
+        if filename.starts_with("http://")
+            || filename.starts_with("https://")
         {
             corpus = self.download_corpus().expect("Failed to download corpus");
         } else {
             corpus = self
                 .read_local()
-                .expect(&format!("no such file or URL {}", self.corpus_filename));
+                .expect(&format!("no such file or URL {}", filename));
         }
 
         let mut last: Option<char> = None;
