@@ -1,13 +1,12 @@
+use crate::bigram::BigramAnalyzer;
 use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 use std::{io, io::prelude::*};
-use crate::bigram::BigramAnalyzer;
 
 pub mod bigram;
 
 // analyzer is case insensitive
 static SET: &str = "abcdefghijklmnopqrstuvwxyz1234567890";
-
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -18,9 +17,9 @@ struct Arguments {
     /// local file or URL to generate matrix with
     #[clap(value_parser)]
     corpus: String,
-        /// load from matrix file (much faster than corpus)
-        #[clap(short, long)]
-        matrix: bool,
+    /// load from matrix file (much faster than corpus)
+    #[clap(short, long)]
+    matrix: bool,
 }
 
 #[derive(Subcommand)]
@@ -46,7 +45,11 @@ enum Commands {
         unique: bool,
     },
     /// print occurrence matrix{n}
-    Matrix,
+    Matrix {
+        /// show pretty table (cannot be reused as matrix file)
+        #[clap(short, long)]
+        pretty: bool,
+    },
 }
 
 fn main() {
@@ -63,10 +66,12 @@ fn main() {
     }
 
     match &args.command {
-        Commands::Matrix => {
-            analyzer.print_matrix();
-
-            println!("{}", analyzer.store_matrix());
+        Commands::Matrix { pretty } => {
+            if *pretty {
+                analyzer.print_matrix();
+            } else {
+                println!("{}", analyzer.store_matrix());
+            }
         }
         Commands::Probability => {
             for word in io::stdin().lock().lines() {

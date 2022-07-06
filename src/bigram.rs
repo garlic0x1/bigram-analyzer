@@ -33,10 +33,10 @@ impl BigramAnalyzer {
         match min_score {
             Some(m) => min = m,
             None => {
-                min = 0.0001;
+                min = 0.0006;
             }
         }
-        
+
         self.weighted_slice_probability(word) > min
     }
 
@@ -52,7 +52,8 @@ impl BigramAnalyzer {
     }
 
     pub fn load_matrix(&mut self) {
-        let s = std::fs::read_to_string(self.matrix_filename.clone().unwrap()).expect("no such file");
+        let s =
+            std::fs::read_to_string(self.matrix_filename.clone().unwrap()).expect("no such file");
 
         let mut lines = s.lines();
         let mut charset = Vec::new();
@@ -108,9 +109,7 @@ impl BigramAnalyzer {
         let corpus: String;
 
         let filename = self.corpus_filename.clone().unwrap();
-        if filename.starts_with("http://")
-            || filename.starts_with("https://")
-        {
+        if filename.starts_with("http://") || filename.starts_with("https://") {
             corpus = self.download_corpus().expect("Failed to download corpus");
         } else {
             corpus = self
@@ -147,7 +146,7 @@ impl BigramAnalyzer {
             }
         }
 
-        for (_,map) in self.matrix.iter_mut() {
+        for (_, map) in self.matrix.iter_mut() {
             for (_, val) in map.iter_mut() {
                 *val /= counter as f32;
             }
@@ -188,7 +187,7 @@ impl BigramAnalyzer {
         }
 
         if counter == 1 {
-            1.0 
+            1.0
         } else {
             sum / counter as f32
         }
