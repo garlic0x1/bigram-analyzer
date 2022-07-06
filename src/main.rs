@@ -18,6 +18,9 @@ struct Arguments {
     /// local file or URL to generate matrix with
     #[clap(value_parser)]
     corpus: String,
+        /// load from matrix file (much faster than corpus)
+        #[clap(short, long)]
+        matrix: bool,
 }
 
 #[derive(Subcommand)]
@@ -28,10 +31,7 @@ enum Commands {
     Clear {
         /// minimum occurence score for "common bigram"
         #[clap(short, long)]
-        score_min: Option<u32>,
-        /// n rare bigrams to be encoded
-        #[clap(short, long, default_value = "1")]
-        occurrences_max: u32,
+        score_min: Option<f32>,
         /// only print unique results
         #[clap(short, long)]
         unique: bool,
@@ -40,10 +40,7 @@ enum Commands {
     Hash {
         /// minimum occurence score for "common bigram"
         #[clap(short, long)]
-        score_min: Option<u32>,
-        /// n rare bigrams to be encoded
-        #[clap(short, long, default_value = "1")]
-        occurrences_max: u32,
+        score_min: Option<f32>,
         /// only print unique results
         #[clap(short, long)]
         unique: bool,
@@ -56,12 +53,20 @@ fn main() {
     let mut unique_filter: HashSet<String> = HashSet::new();
     let args = Arguments::parse();
     let charvec = SET.chars().collect::<Vec<_>>();
-    let mut analyzer = BigramAnalyzer::from_corpus(charvec, args.corpus);
-    analyzer.analyze_corpus();
+    let mut analyzer: BigramAnalyzer;
+    if args.matrix {
+        analyzer = BigramAnalyzer::from_matrix(charvec, args.corpus);
+        analyzer.load_matrix();
+    } else {
+        analyzer = BigramAnalyzer::from_corpus(charvec, args.corpus);
+        analyzer.analyze_corpus();
+    }
 
     match &args.command {
         Commands::Matrix => {
             analyzer.print_matrix();
+
+            println!("{}", analyzer.store_matrix());
         }
         Commands::Probability => {
             for word in io::stdin().lock().lines() {
@@ -70,10 +75,10 @@ fn main() {
                 }
             }
         }
-        Commands::Clear { score_min, occurrences_max, unique } => {
+        Commands::Clear { score_min, unique } => {
             for word in io::stdin().lock().lines() {
                 if let Ok(word) = word {
-                    let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
+                    let is_clear = analyzer.is_word_cleartext(&word, *score_min);
                     if is_clear && (!unique_filter.contains(&word) || !unique) {
                         println!("{}", word);
                         unique_filter.insert(word);
@@ -81,10 +86,10 @@ fn main() {
                 }
             }
         }
-        Commands::Hash { score_min, occurrences_max, unique } => {
+        Commands::Hash { score_min, unique } => {
             for word in io::stdin().lock().lines() {
                 if let Ok(word) = word {
-                    let is_clear = analyzer.is_word_cleartext(&word, *score_min, *occurrences_max);
+                    let is_clear = analyzer.is_word_cleartext(&word, *score_min);
                     if !is_clear && (!unique_filter.contains(&word) || !unique) {
                         println!("{}", word);
                         unique_filter.insert(word);

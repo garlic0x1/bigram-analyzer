@@ -1,15 +1,11 @@
 use prettytable::*;
 use reqwest;
 use std::collections::HashMap;
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::fs::File;
 
 pub struct BigramAnalyzer {
-    matrix: HashMap<char, HashMap<char, u32>>,
+    matrix: HashMap<char, HashMap<char, f32>>,
     corpus_filename: Option<String>,
     matrix_filename: Option<String>,
-    corpus_size: u32,
     charset: Vec<char>,
 }
 
@@ -17,7 +13,6 @@ impl BigramAnalyzer {
     pub fn from_corpus(charset: Vec<char>, corpus_filename: String) -> Self {
         Self {
             charset,
-            corpus_size: 0,
             corpus_filename: Some(corpus_filename),
             matrix_filename: None,
             matrix: HashMap::new(),
@@ -27,46 +22,22 @@ impl BigramAnalyzer {
     pub fn from_matrix(charset: Vec<char>, matrix_filename: String) -> Self {
         Self {
             charset,
-            corpus_size: 0,
             corpus_filename: None,
             matrix_filename: Some(matrix_filename),
             matrix: HashMap::new(),
         }
     }
 
-    pub fn is_word_cleartext(&self, word: &str, min_score: Option<u32>, max_occurrences: u32) -> bool {
-        let min: u32;
+    pub fn is_word_cleartext(&self, word: &str, min_score: Option<f32>) -> bool {
+        let min: f32;
         match min_score {
             Some(m) => min = m,
             None => {
-                min = self.corpus_size / 10_000;
-            }
-            //println!("size threshold set to {} occurrences", min);},
-        }
-        let mut occurrences: u32 = 0;
-        let mut last: Option<char> = None;
-        for c in word.chars() {
-            let mut c = c;
-            // standardize case
-            let ascii = c as u8;
-            if ascii > 64 && ascii < 91 {
-                c = (ascii + 32) as char;
-            }
-            if !self.charset.contains(&c) {
-                last = None;
-                continue;
-            }
-            if self.charset.contains(&c) {
-                if let Some(l) = last {
-                    let score = self.matrix.get(&l).unwrap().get(&c).unwrap();
-                    if score < &min {
-                        occurrences += 1;
-                    }
-                }
-                last = Some(c);
+                min = 0.0001;
             }
         }
-        occurrences < max_occurrences
+        
+        self.weighted_slice_probability(word) > min
     }
 
     fn download_corpus(&self) -> Result<String, reqwest::Error> {
@@ -81,16 +52,55 @@ impl BigramAnalyzer {
     }
 
     pub fn load_matrix(&mut self) {
+        let s = std::fs::read_to_string(self.matrix_filename.clone().unwrap()).expect("no such file");
+
+        let mut lines = s.lines();
+        let mut charset = Vec::new();
+        let set = lines.next();
+        for c in set.unwrap().chars() {
+            if c != ',' {
+                charset.push(c);
+            }
+        }
+
+        for a in charset.iter() {
+            let mut bmap = HashMap::new();
+            let mut set = lines.next().unwrap().split(',');
+            for b in charset.iter() {
+                let strval = set.next().unwrap().to_string();
+                let val: f32 = strval.parse().unwrap();
+                bmap.insert(*b, val);
+            }
+
+            self.matrix.insert(*a, bmap);
+        }
     }
 
-    pub fn store_matrix(&self) {
+    pub fn store_matrix(&self) -> String {
+        let mut store = String::new();
+        for c in self.charset.iter() {
+            store.push(*c);
+            store.push(',');
+        }
+        store.push('\n');
+
+        for a in self.charset.iter() {
+            for b in self.charset.iter() {
+                let val = *self.matrix.get(a).unwrap().get(b).unwrap();
+                store.push_str(&val.to_string());
+                store.push(',');
+            }
+            store.push('\n');
+        }
+
+        store
     }
 
     pub fn analyze_corpus(&mut self) {
         for i in self.charset.iter() {
-            let mut inner: HashMap<char, u32> = HashMap::new();
+            let mut inner: HashMap<char, f32> = HashMap::new();
             for j in self.charset.iter() {
-                inner.insert(*j, 0);
+                inner.insert(*j, 0.0);
             }
             self.matrix.insert(*i, inner);
         }
@@ -130,15 +140,21 @@ impl BigramAnalyzer {
                         .expect("no row")
                         .get_mut(&c)
                         .expect("no cell");
-                    *cell += 1;
+                    *cell += 1.0;
                     counter += 1;
                 }
                 last = Some(c);
             }
         }
-        self.corpus_size = counter;
+
+        for (_,map) in self.matrix.iter_mut() {
+            for (_, val) in map.iter_mut() {
+                *val /= counter as f32;
+            }
+        }
     }
 
+    /// length independent probability
     pub fn weighted_slice_probability(&self, string: &str) -> f32 {
         let mut sum = 0.0;
         let mut counter = 0;
@@ -164,7 +180,7 @@ impl BigramAnalyzer {
                         .get(&c)
                         .expect("no cell");
 
-                    sum += *value as f32 / self.corpus_size as f32;
+                    sum += *value;
                 }
                 last = Some(c);
             }
@@ -178,6 +194,7 @@ impl BigramAnalyzer {
         }
     }
 
+    /// probability that a word exists based on corpus data
     pub fn slice_probability(&self, string: &str) -> f32 {
         let mut probability = 1.0;
         let mut last: Option<char> = None;
@@ -202,7 +219,7 @@ impl BigramAnalyzer {
                         .get(&c)
                         .expect("no cell");
 
-                    probability *= *value as f32 / self.corpus_size as f32;
+                    probability *= *value;
                 }
                 last = Some(c);
             }
@@ -210,6 +227,7 @@ impl BigramAnalyzer {
         probability
     }
 
+    /// pretty printing with a table ( too small for terminal though )
     pub fn print_matrix(&self) {
         let mut table = Table::new();
         let mut start_row = Row::new(Vec::new());
@@ -223,7 +241,7 @@ impl BigramAnalyzer {
             row.add_cell(Cell::new(c.to_string().as_str()));
             for inner in &self.charset {
                 let value = self.matrix.get(&c).unwrap().get(&inner).unwrap();
-                let value = *value as f32 / self.corpus_size as f32;
+                let value = *value;
                 row.add_cell(Cell::new(&value.to_string()));
             }
             table.add_row(row);
