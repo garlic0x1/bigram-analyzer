@@ -22,6 +22,8 @@ struct Arguments {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// print the probability of a string's existence
+    Probability,
     /// print cleartext words from stdin{n}
     Clear {
         /// minimum occurence score for "common bigram"
@@ -60,6 +62,13 @@ fn main() {
     match &args.command {
         Commands::Matrix => {
             analyzer.print_matrix();
+        }
+        Commands::Probability => {
+            for word in io::stdin().lock().lines() {
+                if let Ok(word) = word {
+                    println!("{}", analyzer.weighted_slice_probability(&word));
+                }
+            }
         }
         Commands::Clear { score_min, occurrences_max, unique } => {
             for word in io::stdin().lock().lines() {

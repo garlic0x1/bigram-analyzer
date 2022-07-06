@@ -77,16 +77,6 @@ impl BigramAnalyzer {
             self.matrix.insert(*i, inner);
         }
 
-        /*
-        let f = File::open(self.corpus_filename).expect("failed to open file");
-
-        let mut reader = BufReader::new(f);
-
-    let mut line = String::new();
-    let len = reader.read_(&mut line)?;
-        */
-
-
         let corpus: String;
         if self.corpus_filename.clone().starts_with("http://")
             || self.corpus_filename.starts_with("https://")
@@ -129,6 +119,77 @@ impl BigramAnalyzer {
         self.corpus_size = counter;
     }
 
+    pub fn weighted_slice_probability(&self, string: &str) -> f32 {
+        let mut sum = 0.0;
+        let mut counter = 0;
+        let mut last: Option<char> = None;
+        for ch in string.chars() {
+            // standardize case
+            let mut c = ch;
+            let ascii = c as u8;
+            if ascii > 64 && ascii < 91 {
+                c = (ascii + 32) as char;
+            } else {
+                c = ch;
+            }
+
+            if !self.charset.contains(&c) {
+                last = None;
+            } else {
+                if let Some(l) = last {
+                    let value = self
+                        .matrix
+                        .get(&l)
+                        .expect("no row")
+                        .get(&c)
+                        .expect("no cell");
+
+                    sum += *value as f32 / self.corpus_size as f32;
+                }
+                last = Some(c);
+            }
+            counter += 1;
+        }
+
+        if counter == 1 {
+            1.0 
+        } else {
+            sum / counter as f32
+        }
+    }
+
+    pub fn slice_probability(&self, string: &str) -> f32 {
+        let mut probability = 1.0;
+        let mut last: Option<char> = None;
+        for ch in string.chars() {
+            // standardize case
+            let mut c = ch;
+            let ascii = c as u8;
+            if ascii > 64 && ascii < 91 {
+                c = (ascii + 32) as char;
+            } else {
+                c = ch;
+            }
+
+            if !self.charset.contains(&c) {
+                last = None;
+            } else {
+                if let Some(l) = last {
+                    let value = self
+                        .matrix
+                        .get(&l)
+                        .expect("no row")
+                        .get(&c)
+                        .expect("no cell");
+
+                    probability *= *value as f32 / self.corpus_size as f32;
+                }
+                last = Some(c);
+            }
+        }
+        probability
+    }
+
     pub fn print_matrix(&self) {
         let mut table = Table::new();
         let mut start_row = Row::new(Vec::new());
@@ -142,6 +203,7 @@ impl BigramAnalyzer {
             row.add_cell(Cell::new(c.to_string().as_str()));
             for inner in &self.charset {
                 let value = self.matrix.get(&c).unwrap().get(&inner).unwrap();
+                let value = *value as f32 / self.corpus_size as f32;
                 row.add_cell(Cell::new(&value.to_string()));
             }
             table.add_row(row);
